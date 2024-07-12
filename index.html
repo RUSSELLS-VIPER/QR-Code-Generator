@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced QR Code Generator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Play:wght@500;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'Play', sans-serif;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1c1c1d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .form-container {
+            width: 400px;
+            background: white;
+            border-radius: 20px;
+            padding: 25px 35px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: width 0.5s;
+        }
+
+        .form-container.expanded {
+            width: 700px;
+        }
+
+        .form-content {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .form-content.expanded {
+            width: 60%;
+        }
+
+        .form-content p {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .form-content input,
+        .form-content select {
+            width: 100%;
+            height: 40px;
+            border: 1px solid #1c1c1d;
+            border-radius: 10px;
+            outline: 0;
+            padding: 10px;
+            margin: 10px 0 20px;
+        }
+
+        .form-content textarea {
+            width: 100%;
+            height: 100px;
+            /* Adjust height as needed */
+            border: 1px solid #1c1c1d;
+            border-radius: 10px;
+            outline: 0;
+            padding: 10px;
+            margin: 10px 0 20px;
+            resize: vertical;
+            /* Allow vertical resizing */
+        }
+
+        .form-content button {
+            width: 100%;
+            height: 50px;
+            background: blue;
+            color: white;
+            border: 0;
+            outline: 0;
+            border-radius: 5px;
+            box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            margin-top: 10px 0;
+            font-weight: 500;
+        }
+
+        #imgBox {
+            width: 200px;
+            border-radius: 5px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 1s;
+            margin-top: 20px;
+        }
+
+        #imgBox img {
+            width: 100%;
+            padding: 1px;
+        }
+
+        #imgBox.show-img {
+            max-height: 300px;
+            margin: 10px auto;
+            border: 1px solid black;
+        }
+
+        .error {
+            animation: shake 0.1s linear 10;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-4px);
+            }
+
+            50% {
+                transform: translateX(0);
+            }
+
+            75% {
+                transform: translateX(4px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 0;
+            overflow: hidden;
+            transition: width 0.5s;
+        }
+
+        .qr-section.expanded {
+            width: 35%;
+            margin-left: 20px;
+        }
+
+        .qr-section button {
+            width: 100%;
+            height: 50px;
+            background: blue;
+            color: white;
+            border: 0;
+            outline: 0;
+            border-radius: 5px;
+            box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="form-container" id="formContainer">
+        <div class="form-content" id="formContent">
+            <p>Select QR Code Type</p>
+            <select id="qrType" onchange="handleTypeChange()">
+                <option value="url">URL/Text</option>
+                <option value="pdf">PDF</option>
+                <option value="phone">Phone Number</option>
+                <option value="email">Email</option>
+            </select>
+            <div id="urlInputBox">
+                <p>Enter Your Text / URL</p>
+                <input type="text" placeholder="Text or URL" id="qrText">
+            </div>
+            <div id="pdfInputBox" style="display:none;">
+                <p>Upload a PDF</p>
+                <input type="file" accept="application/pdf" id="pdfFile">
+            </div>
+            <div id="phoneInputBox" style="display:none;">
+                <p>Enter Phone Number</p>
+                <input type="tel" placeholder="Phone Number" id="qrPhone">
+            </div>
+            <div id="emailInputBox" style="display:none;">
+                <p>Recipient Email</p>
+                <input type="email" placeholder="Recipient Email" id="qrEmail">
+                <p>Email Subject</p>
+                <input type="text" placeholder="Subject" id="qrEmailSubject">
+                <p>Email Body</p>
+                <textarea placeholder="Body" id="qrEmailBody"></textarea>
+            </div>
+            <button onclick="generateQR()">Generate QR Code</button>
+        </div>
+        <div class="qr-section" id="qrSection">
+            <div id="imgBox">
+                <img src="" id="qrImage">
+            </div>
+            <button id="downloadBtn" style="display:none;" onclick="downloadQR()">Download QR Code</button>
+            <button id="sendEmailBtn" style="display:none;" onclick="sendEmail()">Send Email</button>
+        </div>
+    </div>
+
+    <script>
+        let imgBox = document.getElementById("imgBox");
+        let qrImage = document.getElementById("qrImage");
+        let qrText = document.getElementById("qrText");
+        let pdfFile = document.getElementById("pdfFile");
+        let qrPhone = document.getElementById("qrPhone");
+        let qrEmail = document.getElementById("qrEmail");
+        let qrEmailSubject = document.getElementById("qrEmailSubject");
+        let qrEmailBody = document.getElementById("qrEmailBody");
+        let qrType = document.getElementById("qrType");
+        let downloadBtn = document.getElementById("downloadBtn");
+        let sendEmailBtn = document.getElementById("sendEmailBtn");
+        let formContainer = document.getElementById("formContainer");
+        let formContent = document.getElementById("formContent");
+        let qrSection = document.getElementById("qrSection");
+
+        function handleTypeChange() {
+            document.getElementById("urlInputBox").style.display = "none";
+            document.getElementById("pdfInputBox").style.display = "none";
+            document.getElementById("phoneInputBox").style.display = "none";
+            document.getElementById("emailInputBox").style.display = "none";
+
+            if (qrType.value === "pdf") {
+                document.getElementById("pdfInputBox").style.display = "block";
+            } else if (qrType.value === "phone") {
+                document.getElementById("phoneInputBox").style.display = "block";
+            } else if (qrType.value === "email") {
+                document.getElementById("emailInputBox").style.display = "block";
+            } else {
+                document.getElementById("urlInputBox").style.display = "block";
+            }
+        }
+
+        function generateQR() {
+            let textValue = qrText.value;
+            let pdfFileValue = pdfFile.files[0];
+            let phoneValue = qrPhone.value;
+            let emailValue = qrEmail.value;
+            let emailSubject = qrEmailSubject.value;
+            let emailBody = qrEmailBody.value;
+
+            if (qrType.value === "pdf" && pdfFileValue) {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const url = URL.createObjectURL(pdfFileValue);
+                    generateQRCode(url);
+                }
+                reader.readAsDataURL(pdfFileValue);
+            } else if (qrType.value === "url" && textValue.length > 0) {
+                let data = encodeURIComponent(textValue);
+                generateQRCode(data);
+            } else if (qrType.value === "phone" && phoneValue.length > 0) {
+                let data = encodeURIComponent(`tel:${phoneValue}`);
+                generateQRCode(data);
+            } else if (qrType.value === "email" && isValidEmail(emailValue)) {
+                // Construct mailto link
+                let mailtoLink = `mailto:${emailValue}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+                generateQRCode(mailtoLink);
+                sendEmailBtn.style.display = 'block'; // Show the send email button
+            } else {
+                if (qrType.value === "url") {
+                    qrText.classList.add('error');
+                    setTimeout(() => {
+                        qrText.classList.remove('error');
+                    }, 1000);
+                } else if (qrType.value === "phone") {
+                    qrPhone.classList.add('error');
+                    setTimeout(() => {
+                        qrPhone.classList.remove('error');
+                    }, 1000);
+                } else if (qrType.value === "email") {
+                    if (!isValidEmail(emailValue)) {
+                        qrEmail.classList.add('error');
+                        setTimeout(() => {
+                            qrEmail.classList.remove('error');
+                        }, 1000);
+                    }
+                    // Additional handling for email subject and body can be added here if needed
+                } else {
+                    alert("Please upload a PDF file.");
+                }
+            }
+        }
+
+        function generateQRCode(data) {
+            const size = 200; // Fixed size of 200x200
+            qrImage.onload = function () {
+                imgBox.classList.add("show-img");
+                formContainer.classList.add("expanded");
+                formContent.classList.add("expanded");
+                qrSection.classList.add("expanded");
+                downloadBtn.style.display = 'block';
+            }
+            qrImage.onerror = function () {
+                alert('Failed to generate QR code. Please try again.');
+            }
+            qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${data}`;
+        }
+
+        function downloadQR() {
+            const link = document.createElement('a');
+            link.href = qrImage.src;
+            link.download = 'qrcode.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function sendEmail() {
+            let emailValue = qrEmail.value;
+            let emailSubject = qrEmailSubject.value;
+            let emailBody = qrEmailBody.value;
+
+            if (isValidEmail(emailValue)) {
+                // Construct mailto link with subject and body
+                let mailtoLink = `mailto:${emailValue}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+                // Open the mail client or create an iframe to send the email
+                let mailtoWindow = window.open(mailtoLink, 'emailWindow');
+                if (mailtoWindow) {
+                    mailtoWindow.close();
+                }
+            } else {
+                qrEmail.classList.add('error');
+                setTimeout(() => {
+                    qrEmail.classList.remove('error');
+                }, 1000);
+            }
+        }
+
+        function isValidEmail(email) {
+            // Basic email validation regex
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+    </script>
+</body>
+
+</html>
